@@ -1,0 +1,147 @@
+  dupl:
+    threshold: 150
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  gocognit:
+    min-complexity: 20
+  gofmt:
+    simplify: false
+  varnamelen:
+    max-distance: 20
+    min-name-length: 2
+    ignore-type-assert-ok: true
+    ignore-map-index-ok: true
+    ignore-chan-recv-ok: true
+    check-receiver: true
+    check-return: true
+    check-type-param: true
+    ignore-decls:
+      - t testing.T
+      - e error
+      - i int
+      - w http.ResponseWriter
+      - r http.Request
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    enable-all-rules: true
+    rules:
+      - name: add-constant
+        disabled: true
+      - name: argument-limit
+        arguments: [9]
+      - name: banned-characters
+        disabled: true
+      - name: confusing-naming
+        disabled: true
+      - name: comment-spacings
+        disabled: true
+      - name: cyclomatic
+        arguments: [15]
+      - name: file-header
+        disabled: true
+      - name: max-public-structs
+        arguments: [10]
+      - name: modifies-parameter
+        disabled: true
+      - name: function-length
+        arguments: [50, 100]
+      - name: function-result-limit
+        arguments: [4]
+      - name: line-length-limit
+        arguments: [140]
+      - name: cognitive-complexity
+        arguments: [20]
+      - name: defer
+        arguments: [["loop", "call-chain", "recover", "return", "method-call"]]
+  linters:
+    disable-all: true
+    enable:
+      - depguard
+      - dupl
+      - errorlint
+      - funlen
+      - goconst
+      - gofmt
+      - goimports
+      - revive
+      - gosec
+      - gosimple
+      - govet
+      - ineffassign
+      - lll
+      - misspell
+      - nakedret
+      - staticcheck
+      - stylecheck
+      - typecheck
+      - unconvert
+      - unparam
+      - unused
+      - prealloc
+      - predeclared
+      - dogsled
+      - goprintffuncname
+      - forbidigo
+      - nolintlint
+      - rowserrcheck
+      - whitespace
+      - asciicheck
+      - sqlclosecheck
+      - exhaustive
+      - exportloopref
+      - noctx
+      - err113
+      - mnd
+      - gocyclo
+      - nlreturn
+      - wsl
+      - gocognit
+      - godot
+      - gomodguard
+      - godox
+      - gochecknoglobals
+      - gochecknoinits
+      - durationcheck
+      - nilerr
+      - wastedassign
+      - importas
+      - promlinter
+      - errname
+      - gomoddirectives
+      - gocritic
+      - forcetypeassert
+      - makezero
+      - thelper
+      - tparallel
+      - bidichk
+      - contextcheck
+      - tenv
+      - nilnil
+      - grouper
+      - decorder
+      - nosprintfhostport
+      - usestdlibvars
+      - asasalint
+      - reassign
+      - containedctx
+      - perfsprint
+      - protogetter
+      - spancheck
+      - mirror
+      - gocheckcompilerdirectives
+      - errcheck
+      - fatcontext
+  run:
+    tests: false
+  issues:
+    exclude-dirs-use-default: true
+    exclude-files:
+      - .*\.pb\.go$
+      - .\_*easyjson\.go$
+    exclude-dirs:
+      - pkg
+      - e2e
+      - migrations
+      - cmd/migrator
