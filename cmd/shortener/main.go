@@ -7,7 +7,8 @@ import (
 	"log"
 	"os"
 
-	"url-shortener/internal/config"
+	"github.com/sshlykov/shortener/internal/bootstrap/app"
+	"github.com/sshlykov/shortener/internal/config"
 )
 
 const (

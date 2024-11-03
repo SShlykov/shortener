@@ -1,5 +1,6 @@
 package domain
 
-type User struct {
-	SurName *string `json:"sur_name,omitempty"`
+type Link struct {
+	ShortURL string
+	Original string
 }
