@@ -1,0 +1,152 @@
+# Tester
+
+```elixir
+Mix.install([
+  {:tesla, "~> 1.13"},
+  {:hackney, "~> 1.20"},
+  {:kino, "~> 0.14.2"},
+  {:jason, "~> 1.4"}
+])
+```
+
+## CLIENT
+
+````elixir
+defmodule Client do
+  use Tesla
+
+  @selected_url "local"
+  @url_local "http://127.0.0.1:15503"
+  @url_test ""
+  @url_dev  ""
+  @url_prod ""
+
+  def middlewares do
+    base_url =
+      case @selected_url do
+        "local" -> {Tesla.Middleware.BaseUrl, @url_local}
+        "test" -> {Tesla.Middleware.BaseUrl, @url_test}
+        "dev" -> {Tesla.Middleware.BaseUrl, @url_dev}
+        "prod" -> {Tesla.Middleware.BaseUrl, @url_prod}
+      end
+
+    headers =
+      {Tesla.Middleware.Headers, []}
+
+    [base_url, Tesla.Middleware.JSON, headers]
+  end
+  def adapter, do: {Tesla.Adapter.Hackney, insecure: true, recv_timeout: 30_000}
+
+  # оставляю место для авторизации
+  def client(nil), do: Tesla.client(middlewares(), adapter())
+
+  defmodule Mediaplanner do
+    defstruct ~w(client operations results)a
+
+    def new(client), do: %Mediaplanner{client: client, operations: [], results: %{}}
+
+    def set_operations(%Mediaplanner{} = mp, operations) when is_list(operations),
+      do: %Mediaplanner{mp | operations: Enum.with_index(operations)}
+
+    def calculate(%Mediaplanner{} = start_mp) do
+      Enum.reduce(
+        start_mp.operations,
+        start_mp,
+        fn {operation, idx}, curr_mp ->
+          res = execute_operation(curr_mp, operation)
+
+          %Mediaplanner{curr_mp | results: Map.put(curr_mp.results, idx, res)}
+        end
+      )
+    end
+
+    def reparse_option(_, options, nil), do: options
+    def reparse_option(%Mediaplanner{results: res}, options, parser) do
+      %{path: _, body: _} = apply(parser, [options, res])
+    end
+
+    @type path :: String.t()
+    @type body :: Map.t() | String.t()
+    @type option :: {:get | :delete, path} | {:post | :put, path, body}
+    defp execute_operation(%Mediaplanner{} = mp, %{request: options} = req) do
+      list = Tuple.to_list(options)
+
+      [method, options] =
+        case list do
+          [method, path] -> [method, %{path: path, body: nil}]
+          [method, path, body] -> [method, %{path: path, body: body}]
+          _ -> throw("error")
+        end
+
+
+      do_req(mp.client, method, reparse_option(mp, options, Map.get(req, :func)))
+    end
+
+    def do_req(client, method, %{path: path, body: body}) do
+      req_options = if(is_nil(body), do: [client, path], else: [client, path, body])
+
+      case apply(Tesla, method, req_options) do
+          {:ok, res} -> %{method: method, path: path, status: res.status, body: res.body}
+          error -> error
+        end
+    end
+  end
+
+  def draw(auth, operations, opts \\ []) when is_list(operations) do
+    res =
+      Mediaplanner.new(client(auth))
+      |> Mediaplanner.set_operations(operations)
+      |> Mediaplanner.calculate
+
+    res.results
+    |> Enum.map(&format_result(&1, opts))
+    |> Enum.map(& [&1, Kino.Markdown.new("----")])
+    |> List.flatten()
+    |> (fn x -> [Kino.Markdown.new("----") | x] end).()
+    |> Kino.Layout.grid()
+  end
+
+  defp format_result({idx, %{method: method, path: path, status: status, body: body}}, opts) do
+    status =
+      cond do
+        status < 400 -> "🟢 #{status}"
+        status < 500 -> "🔴 #{status}"
+        true -> "❌ #{status}"
+      end
+
+    Kino.Markdown.new(
+      """
+      #{status} -Запрос #{idx+1}- _Метод: **#{String.upcase(Atom.to_string(method))}**; Путь: **#{path}**_;
+
+      Тело ответа:
+      ```json
+      #{write(body, opts)}
+      ```
+      """
+    )
+  end
+
+  defp format_result({:error, reason}, _) do
+    """
+    Error occurred:
+    #{inspect(reason)}
+    """
+  end
+
+  defp write(%{} = body, opts), do: Jason.encode!(body, opts)
+  defp write(body, _opts), do: body
+end
+````
+
+```elixir
+# ТЕСТ
+
+operations = 
+  [
+    %{request: {:get, "/health"}},
+    %{request: {:get, "/readiness"}},
+    %{request: {:get, "/metrics"}}
+  ]
+
+Client.draw(nil, operations, pretty: true)
+```

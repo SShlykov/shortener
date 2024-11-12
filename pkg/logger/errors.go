@@ -1,6 +1,8 @@
 package logger
 
+import "errors"
+
 var (
-// common errors that you can use in your code
-// Err.. = errors.New("...")
+	ErrorUnknownLevel = errors.New("unknown level")
+	ErrorUnknownMode  = errors.New("unknown mode")
 )

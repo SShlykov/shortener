@@ -5,4 +5,8 @@ endif
 
 .PHONY: run
 run:
-	@echo "Hello World!"
+	go run cmd/shortener/main.go
+
+.PHONY: lint
+lint:
+	golangci-lint run

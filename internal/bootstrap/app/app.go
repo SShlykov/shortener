@@ -6,23 +6,30 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sshlykov/shortener/internal/bootstrap/registry"
 	"github.com/sshlykov/shortener/internal/config"
+	"github.com/sshlykov/shortener/pkg/logger"
+	"github.com/sshlykov/shortener/pkg/postgres"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 type App struct {
+	//nolint:containedctx
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// db
-	// traceprovider
-	// prometheus
-	// etc
+	db postgres.Client
 
-	cfg      *config.Config
-	services *registry.Services
+	cfg  *config.Config
+	prom *prometheus.Registry
+
+	traceProvider *trace.TracerProvider
 
 	ready    int32
 	checkers []DependencyChecker
+
+	services *registry.Services
 }
 
 func New(ctx context.Context, cfg *config.Config) (*App, error) {
@@ -45,13 +52,10 @@ func (app *App) Run() (err error) {
 
 	var wg sync.WaitGroup
 
-	// logger.Info(ctx, "starting app")
-	// logger.Debug(ctx, "starting app")
+	logger.Info(ctx, "starting app")
+	logger.Debug(ctx, "debug messages started")
 
-	app.services, err = registry.NewServices(app.cfg)
-	if err != nil {
-		return err
-	}
+	app.services = registry.NewServices(app.cfg)
 
 	for _, checker := range app.appCheckers() {
 		app.RegisterChecker(checker)
@@ -65,10 +69,8 @@ func (app *App) Run() (err error) {
 	stoppedChan := make(chan struct{})
 	go func() {
 		wg.Wait()
-
-		// stop everything you need
 		stoppedChan <- struct{}{}
-	}
+	}()
 
-	return nil
+	return app.closer(ctx, stoppedChan)
 }

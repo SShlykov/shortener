@@ -1,63 +1,60 @@
 package config
 
 import (
-	"bufio"
-	"io"
 	"os"
-
-	"gopkg.in/yaml.v3"
+	"time"
 )
 
-type IConfig interface {
-	Default()
-	Validate() error
-}
-
 type Config struct {
-	App App `yaml:"app"`
+	App    App    `yaml:"app"`
+	Health Health `yaml:"health"`
+	Logger Logger `yaml:"logger"`
+	DB     DB     `yaml:"db"`
 }
 
 type App struct {
-	Name string `yaml:"name"`
+	Name                 string        `yaml:"name"`
+	Version              string        `yaml:"version"`
+	Env                  string        `yaml:"env"`
+	TerminateTimeout     time.Duration `yaml:"terminate_timeout"`
+	OtelAgent            string        `yaml:"otel_agent"`
+	ReadinessCheckPeriod time.Duration `yaml:"readiness_check_period"`
+}
+
+type DB struct {
+	RefreshTimeout time.Duration `yaml:"refresh_timeout"`
+}
+
+type Health struct {
+	Port int `yaml:"port"`
+
+	ReadTimeout       time.Duration `yaml:"read_timeout"`
+	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout"`
+	WriteTimeout      time.Duration `yaml:"write_timeout"`
+	IdleTimeout       time.Duration `yaml:"idle_timeout"`
+
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+}
+
+type Logger struct {
+	Level string `yaml:"level"`
+	Mode  string `yaml:"mode"`
 }
 
 func Load(path string) (*Config, error) {
-
-	return &Config{}, nil
-}
-
-func load(config *Config) error {
-	var (
-		err  error
-		name string
-		file *os.File
-	)
-
-	if len(os.Args) < 2 || os.Args[1] == "" {
-		name = defaultConfigFile
-	} else {
-		name = os.Args[1]
+	if path == "" {
+		return nil, ErrConfigPathNotSpecified
 	}
 
-	if file, err = os.Open(name); err != nil {
-		return err
+	path += "/default.yaml"
+	if _, err := os.Stat(path); err != nil {
+		return nil, ErrConfigFileNotFound
 	}
 
-	config.Default()
-
-	dec := yaml.NewDecoder(bufio.NewReader(file))
-	dec.KnownFields(true)
-	if err = dec.Decode(config); err != nil && err != io.EOF {
-		return err
+	cfg := &Config{}
+	if err := ReadConfig(path, cfg); err != nil {
+		return nil, ErrCantReadConfigFile
 	}
 
-	return nil
-}
-
-func (c *Config) Default() {
-	c.App.Name = "shortener"
-}
-
-func (c *Config) Validate() error {
-	return nil
+	return cfg, nil
 }

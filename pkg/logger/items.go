@@ -2,8 +2,16 @@ package logger
 
 import "log/slog"
 
-// At least any
+func Any(key string, value interface{}) slog.Attr {
+	return slog.Attr{
+		Key:   key,
+		Value: slog.AnyValue(value),
+	}
+}
 
-func Any(key string, value any) slog.Attr {
-	panic("implement me")
+func Err(err error) slog.Attr {
+	return slog.Attr{
+		Key:   "error",
+		Value: slog.StringValue(err.Error()),
+	}
 }

@@ -1,3 +1,135 @@
+linters-settings:
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: github.com/sirupsen/logrus
+            desc: no logrus
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  funlen:
+    lines: 120
+    statements: 60
+  interfacebloat:
+    # The maximum number of methods allowed for an interface.
+    # Default: 10
+    max: 10
+  godot:
+    # Comments to be checked: `declarations`, `toplevel`, or `all`.
+    # Default: declarations
+    scope: declarations
+    # List of regexps for excluding particular comment lines from check.
+    # Default: []
+    exclude:
+      # Exclude to-do and fix-me comments.
+      - "^fixme:"
+      - "^todo:"
+      - "nolint:"
+    # Check that each sentence ends with a period.
+    # Default: true
+    period: false
+    # Check that each sentence starts with a capital letter.
+    # Default: false
+    capital: false
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - whyNoLint
+      - typeDefFirst
+      - paramTypeCombine
+    settings:
+      captLocal: # must be valid enabled check name
+        # whether to restrict checker to params only (default true)
+        paramsOnly: true
+      elseif:
+        # whether to skip balanced if-else pairs (default true)
+        skipBalanced: true
+      hugeParam:
+        # size in bytes that makes the warning trigger (default 80)
+        sizeThreshold: 80
+      nestingReduce:
+        # min number of statements inside a branch to trigger a warning (default 5)
+        bodyWidth: 5
+      rangeExprCopy:
+        # size in bytes that makes the warning trigger (default 512)
+        sizeThreshold: 512
+        # whether to check test functions (default true)
+        skipTestFuncs: true
+      rangeValCopy:
+        # size in bytes that makes the warning trigger (default 128)
+        sizeThreshold: 128
+        # whether to check test functions (default true)
+        skipTestFuncs: true
+      truncateCmp:
+        # whether to skip int/uint/uintptr types (default true)
+        skipArchDependent: true
+      underef:
+        # whether to skip (*x).method() calls where x is a pointer receiver (default true)
+        skipRecvDeref: true
+  gocyclo:
+    min-complexity: 15
+  goimports:
+    local-prefixes: github.com/golangci/golangci-lint
+  mnd:
+    checks:
+      - argument
+      - case
+      - condition
+      - return
+      - operation
+      - assign
+    ignored-numbers:
+      - '2'
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/golang/protobuf:
+            recommendations:
+              - google.golang.org/protobuf
+            reason: "see https://developers.google.com/protocol-buffers/docs/reference/go/faq#modules"
+        - github.com/satori/go.uuid:
+            recommendations:
+              - gitlab.tcsbank.ru/openbanking/go-common/pkg/id
+            reason: "satori's package is not maintained"
+        - github.com/gofrs/uuid:
+            recommendations:
+              - gitlab.tcsbank.ru/openbanking/go-common/pkg/id
+            reason: "gofrs' package is not go module"
+        - github.com/google/uuid:
+            recommendations:
+              - gitlab.tcsbank.ru/openbanking/go-common/pkg/id
+            reason: "use go-common"
+        - github.com/pkg/errors:
+            recommendations:
+              - errors
+              - fmt
+            reason: "Should be replaced by standard lib errors package"
+  lll:
+    line-length: 140
+  misspell:
+    locale: US
+  nolintlint:
+    allow-unused: true
+    require-explanation: false
+    require-specific: false
   dupl:
     threshold: 150
   goconst:

@@ -1,0 +1,19 @@
+app:
+  name: "url-shortener"
+  version: "1.0.0"
+  env: dev
+  terminate_timeout: 60s
+  otel_agent:
+  readiness_check_period: 5s
+db:
+  refresh_timeout: 10s
+health:
+  port: 15503
+  read_timeout: 10s
+  read_header_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 10s
+  shutdown_timeout: 10s
+logger:
+  level: debug
+  mode: pretty # pretty, json
