@@ -2,75 +2,149 @@ package app
 
 import (
 	"context"
-	"os/signal"
-	"sync"
-	"syscall"
+	"errors"
+	"fmt"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/sshlykov/shortener/internal/bootstrap/registry"
 	"github.com/sshlykov/shortener/internal/config"
 	"github.com/sshlykov/shortener/pkg/logger"
-	"github.com/sshlykov/shortener/pkg/postgres"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 type App struct {
-	//nolint:containedctx
-	ctx    context.Context
-	cancel context.CancelFunc
+	cfg         config.AppConfig
+	logger      Logger
+	metrics     MetricsCollector
+	healthCheck HealthChecker
+	services    []Service
+	//db          *database.Client
+	//cache       *cache.Client
+	//eventBus    *eventbus.Client
 
-	db postgres.Client
-
-	cfg  *config.Config
-	prom *prometheus.Registry
-
-	traceProvider *trace.TracerProvider
-
-	ready    int32
-	checkers []DependencyChecker
-
-	services *registry.Services
+	// Внешние клиенты
+	//paymentGateway *payment.Client
+	//emailProvider  *email.Client
 }
 
-func New(ctx context.Context, cfg *config.Config) (*App, error) {
-	app := &App{}
-	app.ctx, app.cancel = context.WithCancel(ctx)
-	app.cfg = cfg
+func New(cfg config.AppConfig) (*App, error) {
+	app := &App{
+		cfg: cfg,
+	}
 
-	for _, init := range app.appInitials() {
-		if err := init(); err != nil {
-			return nil, err
+	initSteps := []struct {
+		name string
+		fn   func() error
+	}{
+		{"logger", app.initLogger},
+		{"metrics", app.initMetrics},
+		{"health check", app.initHealthCheck},
+		{"services", app.initServices},
+		//{"database", app.initDatabase},
+		//{"cache", app.initCache},
+		//{"event bus", app.initEventBus},
+		//{"external clients", app.initExternalClients},
+	}
+
+	for _, step := range initSteps {
+		if err := step.fn(); err != nil {
+			return nil, fmt.Errorf("failed to initialize %s: %w", step.name, err)
 		}
 	}
 
 	return app, nil
 }
 
-func (app *App) Run() (err error) {
-	ctx, stop := signal.NotifyContext(app.ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+func (a *App) Run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	var wg sync.WaitGroup
+	errChan := make(chan error, len(a.services))
 
-	logger.Info(ctx, "starting app")
-	logger.Debug(ctx, "debug messages started")
-
-	app.services = registry.NewServices(app.cfg)
-
-	for _, checker := range app.appCheckers() {
-		app.RegisterChecker(checker)
+	for _, svc := range a.services {
+		go func(s Service) {
+			logger.Info(ctx, "starting service", "name", s.Name())
+			if err := s.Start(ctx); err != nil {
+				errChan <- fmt.Errorf("service %s error: %w", s.Name(), err)
+			}
+		}(svc)
 	}
 
-	for _, service := range app.appServices() {
-		wg.Add(1)
-		go service(ctx, app.cancel, &wg)
-	}
-
-	stoppedChan := make(chan struct{})
 	go func() {
-		wg.Wait()
-		stoppedChan <- struct{}{}
+		err := a.healthCheck.Start(ctx)
+		if err != nil {
+			errChan <- fmt.Errorf("health check error: %w", err)
+		}
 	}()
 
-	return app.closer(ctx, stoppedChan)
+	select {
+	case <-ctx.Done():
+		return a.shutdown(context.Background())
+	case err := <-errChan:
+		return fmt.Errorf("service error: %w", err)
+	}
+}
+
+func (a *App) stopServices(ctx context.Context) error {
+	var errs []error
+
+	for _, svc := range a.services {
+		if err := svc.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop %s service: %w", svc.Name(), err))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+func (a *App) shutdown(ctx context.Context) error {
+	var errs []error
+
+	if err := a.stopServices(ctx); err != nil {
+		errs = append(errs, fmt.Errorf("failed to stop services: %w", err))
+	}
+
+	if a.healthCheck != nil {
+		if err := a.healthCheck.Stop(ctx); err != nil {
+			errs = append(errs, fmt.Errorf("failed to stop health check: %w", err))
+		}
+	}
+
+	// Закрываем соединения с внешними сервисами
+	/*
+		if a.paymentGateway != nil {
+			if err := a.paymentGateway.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close payment gateway: %w", err))
+			}
+		}
+
+		if a.emailProvider != nil {
+			if err := a.emailProvider.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close email provider: %w", err))
+			}
+		}
+
+		// Закрываем внутренние компоненты
+		if a.eventBus != nil {
+			if err := a.eventBus.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close event bus: %w", err))
+			}
+		}
+
+		if a.cache != nil {
+			if err := a.cache.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close cache: %w", err))
+			}
+		}
+
+		if a.db != nil {
+			if err := a.db.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("failed to close database: %w", err))
+			}
+		}
+
+	*/
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	return nil
 }

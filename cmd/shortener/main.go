@@ -30,13 +30,13 @@ func main() {
 		os.Exit(ErrConfigLoad)
 	}
 
-	application, err := app.New(ctx, cfg)
+	application, err := app.New(cfg)
 	if err != nil {
 		fmt.Printf("failed to create app: %s\n", err.Error())
 		os.Exit(ErrCreateApp)
 	}
 
-	if err = application.Run(); err != nil {
+	if err = application.Run(ctx); err != nil {
 		fmt.Printf("failed to run app: %s\n", err.Error())
 		os.Exit(ErrRunApp)
 	}

@@ -1,124 +1,157 @@
 package app
 
 import (
-	"context"
-	"log/slog"
-	"os"
+	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
+
+	"github.com/sshlykov/shortener/internal/bootstrap/metrics"
 	"github.com/sshlykov/shortener/pkg/logger"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-func (app *App) appInitials() []func() error {
-	return []func() error{
-		app.initLogger,
-		app.initPrometheus,
-		app.initOtel,
-		app.initDB,
-	}
-}
-
-func (app *App) initLogger() error {
-	level, err := logger.LevelFromString(app.cfg.Logger.Level)
+func (a *App) initLogger() error {
+	log, err := logger.Setup(logger.Level(a.cfg.Logger.Level), logger.Mode(a.cfg.Logger.Mode))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create logger: %w", err)
 	}
-	mode, err := logger.ModeFromString(app.cfg.Logger.Mode)
-	if err != nil {
-		return err
-	}
-	l, err := logger.Setup(level, mode)
-	if err != nil {
-		return err
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		return err
-	}
-	appCfg := app.cfg.App
-	l.With(slog.String("inst", hostname),
-		slog.String("system_version", appCfg.Version),
-		slog.String("system", appCfg.Name),
-		slog.String("env", appCfg.Env),
-	)
-	app.ctx = l.Inject(app.ctx)
+	a.logger = log
 	return nil
 }
 
-func (app *App) initPrometheus() error {
+func (a *App) initMetrics() error {
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(collectors.NewGoCollector())
-	app.prom = reg
+	a.metrics = metrics.NewMetricsCollector(reg)
 	return nil
 }
 
-func (app *App) initOtel() error {
-	res, err := resource.Merge(
-		resource.Default(), resource.NewWithAttributes(
-			semconv.SchemaURL, semconv.ServiceName(app.cfg.App.Name),
-			semconv.ServiceVersion(app.cfg.App.Version), semconv.DeploymentEnvironment(app.cfg.App.Env),
-		))
+/*
+	func (a *App) initDatabase() error {
+		if !a.cfg.Database.Enabled {
+			a.logger.Info("database is disabled")
+			return nil
+		}
+
+		db, err := database.New(a.cfg.Database)
+		if err != nil {
+			return fmt.Errorf("failed to create database client: %w", err)
+		}
+
+		// Проверяем подключение
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := db.Ping(ctx); err != nil {
+			return fmt.Errorf("failed to ping database: %w", err)
+		}
+
+		a.db = db
+		return nil
+	}
+
+	func (a *App) initCache() error {
+		if !a.cfg.Cache.Enabled {
+			a.logger.Info("cache is disabled")
+			return nil
+		}
+
+		cache, err := cache.New(a.cfg.Cache)
+		if err != nil {
+			return fmt.Errorf("failed to create cache client: %w", err)
+		}
+
+		// Проверяем подключение
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := cache.Ping(ctx); err != nil {
+			return fmt.Errorf("failed to ping cache: %w", err)
+		}
+
+		a.cache = cache
+		return nil
+	}
+
+	func (a *App) initEventBus() error {
+		if !a.cfg.EventBus.Enabled {
+			a.logger.Info("event bus is disabled")
+			return nil
+		}
+
+		eventBus, err := eventbus.New(a.cfg.EventBus)
+		if err != nil {
+			return fmt.Errorf("failed to create event bus client: %w", err)
+		}
+
+		a.eventBus = eventBus
+		return nil
+	}
+
+	func (a *App) initExternalClients() error {
+		// Инициализируем платежный шлюз
+		if a.cfg.Payment.Enabled {
+			paymentClient, err := payment.New(a.cfg.Payment)
+			if err != nil {
+				return fmt.Errorf("failed to create payment client: %w", err)
+			}
+			a.paymentGateway = paymentClient
+		}
+
+		// Инициализируем email провайдер
+		if a.cfg.Email.Enabled {
+			emailClient, err := email.New(a.cfg.Email)
+			if err != nil {
+				return fmt.Errorf("failed to create email client: %w", err)
+			}
+			a.emailProvider = emailClient
+		}
+
+		return nil
+	}
+*/
+func (a *App) initHealthCheck() error {
+	health, err := NewHealthCheck(a.cfg.Health, a.metrics)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create health check: %w", err)
 	}
 
-	traceProvider := trace.NewTracerProvider(trace.WithResource(res))
-	if app.cfg.App.OtelAgent != "" {
-		conn, err := grpc.NewClient(app.cfg.App.OtelAgent, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
-		exporter, err := otlptracegrpc.New(context.Background(), otlptracegrpc.WithGRPCConn(conn))
-		if err != nil {
-			return err
-		}
-		traceProvider = trace.NewTracerProvider(
-			trace.WithBatcher(exporter), trace.WithResource(res),
-		)
+	// Добавляем проверки для компонентов
+	/*if a.db != nil {
+		health.AddChecker(NewDatabaseChecker(a.db))
 	}
-	otel.SetTracerProvider(traceProvider)
-	app.traceProvider = traceProvider
+	if a.cache != nil {
+		health.AddChecker(NewCacheChecker(a.cache))
+	}
+	if a.eventBus != nil {
+		health.AddChecker(NewEventBusChecker(a.eventBus))
+	}
+	if a.paymentGateway != nil {
+		health.AddChecker(NewPaymentChecker(a.paymentGateway))
+	}*/
 
+	a.healthCheck = health
 	return nil
 }
 
-func (app *App) initDB() error {
-	// Сделано так, чтобы дать запуститься всему остальному, если база не стартанула, то приложение завершится
-	//dsn, err := config.GetDSN()
-	//if err != nil {
-	//	return fmt.Errorf("unable to connect to database: %w", err)
-	//}
-	//db, err := postgres.NewClient(app.ctx, dsn)
-	//if err != nil {
-	//	return fmt.Errorf("failed to init pg client: %w", err)
-	//}
-	//app.db = db
-	//
-	//checkupdb := func() {
-	//	startTime := time.Now()
-	//	h := func() error {
-	//		if time.Since(startTime) > app.cfg.DB.RefreshTimeout {
-	//			return backoff.Permanent(ErrTimeoutExceeded)
-	//		}
-	//		err = db.DB().Ping(app.ctx)
-	//		if err == nil {
-	//			return backoff.Permanent(nil)
-	//		}
-	//		return ErrCantStart
-	//	}
-	//	if err = backoff.Retry(h, backoff.NewExponentialBackOff()); err != nil {
-	//		logger.Error(app.ctx, "error during db creation", logger.Err(err))
-	//		app.cancel()
-	//	}
-	//}
-	//go checkupdb()
+func (a *App) initServices() error {
+	// Собираем все зависимости для сервисов
+	deps := ServiceDependencies{
+		Logger:  a.logger,
+		Metrics: a.metrics,
+		/*Database: a.db,
+		Cache:    a.cache,
+		EventBus: a.eventBus,
+		ExternalClients: ExternalClients{
+			Payment: a.paymentGateway,
+			Email:   a.emailProvider,
+		},*/
+	}
+
+	// Создаем сервисы
+	svcs, err := BuildServices(a.cfg.Services, deps)
+	if err != nil {
+		return fmt.Errorf("failed to build services: %w", err)
+	}
+
+	a.services = svcs
 	return nil
 }
