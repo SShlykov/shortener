@@ -58,3 +58,55 @@ func Load(path string) (*Config, error) {
 
 	return cfg, nil
 }
+
+// --------------------------
+
+type AppConfig struct {
+	Logger   LoggerConfig   `yaml:"logger"`
+	Health   HealthConfig   `yaml:"health"`
+	Services ServicesConfig `yaml:"services"`
+	//Database DatabaseConfig `yaml:"database"`
+	//Cache    CacheConfig    `yaml:"cache"`
+	//EventBus EventBusConfig `yaml:"event_bus"`
+
+	// Конфигурация внешних сервисов
+	//Payment PaymentConfig `yaml:"payment"`
+	//Email   EmailConfig   `yaml:"email"`
+}
+
+type ServicesConfig struct {
+	User  UserServiceConfig  `yaml:"user"`
+	Order OrderServiceConfig `yaml:"order"`
+	//Payment PaymentServiceConfig `yaml:"payment"`
+}
+
+type UserServiceConfig struct {
+	BaseServiceConfig
+	CacheTTL          time.Duration `yaml:"cache_ttl"`
+	MaxRetries        int           `yaml:"max_retries"`
+	ValidationTimeout time.Duration `yaml:"validation_timeout"`
+}
+
+type OrderServiceConfig struct {
+	BaseServiceConfig
+	ProcessTimeout time.Duration `yaml:"process_timeout"`
+	BatchSize      int           `yaml:"batch_size"`
+}
+
+// общие настройки, используемые всеми сервисами
+type BaseServiceConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	LogLevel string `yaml:"log_level"`
+}
+
+type LoggerConfig struct {
+	Level int `yaml:"level"`
+	Mode  int `yaml:"mode"`
+}
+
+type HealthConfig struct {
+	Port            int           `yaml:"port"`
+	Host            string        `yaml:"host"`
+	CheckInterval   time.Duration `yaml:"check_interval"`
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+}

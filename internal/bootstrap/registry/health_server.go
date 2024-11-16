@@ -10,14 +10,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus"
+
 	healthcntrl "github.com/sshlykov/shortener/internal/app/health"
 	"github.com/sshlykov/shortener/internal/config"
 	"github.com/sshlykov/shortener/pkg/logger"
 	mw "github.com/sshlykov/shortener/pkg/logger/echomw"
 )
 
-func RunHealthServer(ctx context.Context, prom *prometheus.Registry, cfg config.Health,
-	readinessHandler func() bool) error {
+func RunHealthServer(ctx context.Context, prom *prometheus.Registry, cfg config.Health, readinessHandler func() bool) error {
 
 	handler := echo.New()
 	handler.Use(middleware.Recover())
