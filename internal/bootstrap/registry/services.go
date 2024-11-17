@@ -8,6 +8,12 @@ import (
 
 type Services struct {
 	HealthService
+	// поворот картинки
+	// масштабирование
+	// обрезка
+	// сервисный слой приложения
+	// user service
+	// role service
 }
 
 type HealthService interface {

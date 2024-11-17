@@ -13,6 +13,9 @@ func (app *App) appServices() []func(ctx context.Context, stop context.CancelFun
 	return []func(ctx context.Context, stop context.CancelFunc, wg *sync.WaitGroup){
 		app.runHealthApp,
 		app.runReadinessChecker,
+		// app.runMetricsServer,
+		// app.runTracingServer,
+		// app.runAPIServer,
 	}
 }
 
@@ -26,6 +29,7 @@ func (app *App) runHealthApp(ctx context.Context, stop context.CancelFunc, wg *s
 	}
 }
 
+// проверяет готовность всего приложения вместе
 func (app *App) runReadinessChecker(ctx context.Context, stop context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer stop()

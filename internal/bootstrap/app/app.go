@@ -3,15 +3,17 @@ package app
 import (
 	"context"
 	"os/signal"
+	"runtime/metrics"
 	"sync"
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/sshlykov/shortener/internal/bootstrap/registry"
 	"github.com/sshlykov/shortener/internal/config"
 	"github.com/sshlykov/shortener/pkg/logger"
 	"github.com/sshlykov/shortener/pkg/postgres"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 type App struct {
@@ -73,4 +75,70 @@ func (app *App) Run() (err error) {
 	}()
 
 	return app.closer(ctx, stoppedChan)
+}
+
+// --------
+
+func New(cfg *config.Config) *App {
+	// build infrastructure
+	1 / metrics
+	2 / tracker
+	3 / logger
+	4 / db
+	5 / broker - producer / consumer
+
+	6 / readiness
+	7 / health
+	8 / service locator
+
+	// build business services
+	[]service
+	1/ croper
+	2/ zoomer
+	3/ rotator
+	4/ user
+
+
+	return &App{
+		cfg: cfg,
+		registry: []goroutines / daemons,
+		// others
+	}
+}
+
+func Run(app *App) error {
+	// goroutines runners
+	1 / metrics server
+	5 / broker consumer
+	6 / readiness server
+	7 / health server
+	8 / service locator
+
+	+ gracefull shutdown
+
+	// business
+	rest api server
+	grps server
+	scheduler
+	parser
+
+	// checkers
+	1/ metrics health checker
+	2/ db health checker
+	3/ api health checker
+}
+
+// компоненты должны поддерживать интерфейсы
+
+type Checker interface {
+	Check(ctx context.Context) error
+}
+
+type Runner interface {
+	Run(ctx context.Context) error
+	Stop()
+}
+
+type Builder interface {
+	Build(cfg *config.Config) Runner
 }

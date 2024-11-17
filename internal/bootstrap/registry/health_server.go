@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus"
+
 	healthcntrl "github.com/sshlykov/shortener/internal/app/health"
 	"github.com/sshlykov/shortener/internal/config"
 	"github.com/sshlykov/shortener/pkg/logger"
@@ -21,11 +22,14 @@ func RunHealthServer(ctx context.Context, prom *prometheus.Registry, cfg config.
 
 	handler := echo.New()
 	handler.Use(middleware.Recover())
+	// metrics middleware
+	// tracer middleware
 
 	loggermw := mw.New(*logger.FromContext(ctx))
 	handler.Use(loggermw)
 
 	healthcntrl.New(prom, readinessHandler).RegisterRoutes(handler.Group(""))
+	//healthcntrl.New(prom, readinessHandler).RegisterRoutes(handler.Group("private")) + middleware.BasicAuth
 
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),

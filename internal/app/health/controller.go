@@ -10,10 +10,19 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type serviceMiddleware struct {
+	fn   log.Logger
+	next Service
+}
+
+// It represents a single RPC. That is, a single method in our service interface.
+type Endpoint func(ctx context.Context, request interface{}) (response interface{}, err error)
+type Middleware func(next Endpoint) Endpoint
+
 type Controller struct {
-	prom             *prometheus.Registry
+	prom             *prometheus.Registry // middleware!!
 	tracer           trace.Tracer
-	readinessHandler func() bool
+	readinessHandler func() bool // service from registry
 }
 
 func New(prom *prometheus.Registry, readinessHandler func() bool) *Controller {
@@ -28,7 +37,6 @@ func (c *Controller) RegisterRoutes(router *echo.Group) {
 	router.GET("/health", c.Health)
 	router.GET("/readiness", c.Readiness)
 	router.GET("/metrics", c.PrometheusHandler())
-
 }
 
 // Health - endpoint for health
@@ -37,6 +45,7 @@ func (c *Controller) Health(ectx echo.Context) error {
 	return ectx.JSON(http.StatusOK, echo.Map{"status": "healthy"})
 }
 func (c *Controller) Readiness(ectx echo.Context) error {
+	// decode request -> endpoint(call service) -> encode response
 	if c.readinessHandler() {
 		return ectx.JSON(http.StatusOK, echo.Map{"status": "ready"})
 	}
