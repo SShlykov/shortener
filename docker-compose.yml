@@ -1,0 +1,27 @@
+services:
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: "postgres:16.3-alpine"
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=shortener
+      - POSTGRES_USER=shortener
+      - POSTGRES_PASSWORD=shortener
+      - POSTGRES_PORT=5432
+      - POSTGRES_SSL_MODE=disable
+      - PGDATA=/data/postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

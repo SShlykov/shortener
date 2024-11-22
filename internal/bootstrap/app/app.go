@@ -7,11 +7,12 @@ import (
 	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/sshlykov/shortener/internal/bootstrap/registry"
 	"github.com/sshlykov/shortener/internal/config"
 	"github.com/sshlykov/shortener/pkg/logger"
 	"github.com/sshlykov/shortener/pkg/postgres"
-	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 type App struct {
@@ -55,7 +56,7 @@ func (app *App) Run() (err error) {
 	logger.Info(ctx, "starting app")
 	logger.Debug(ctx, "debug messages started")
 
-	app.services = registry.NewServices(app.cfg)
+	app.services = registry.NewServices(app.db, app.cfg)
 
 	for _, checker := range app.appCheckers() {
 		app.RegisterChecker(checker)

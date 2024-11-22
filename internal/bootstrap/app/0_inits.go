@@ -2,12 +2,13 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/sshlykov/shortener/pkg/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -15,6 +16,11 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/sshlykov/shortener/internal/config"
+	"github.com/sshlykov/shortener/pkg/backoff"
+	"github.com/sshlykov/shortener/pkg/logger"
+	"github.com/sshlykov/shortener/pkg/postgres"
 )
 
 func (app *App) appInitials() []func() error {
@@ -92,33 +98,34 @@ func (app *App) initOtel() error {
 
 func (app *App) initDB() error {
 	// Сделано так, чтобы дать запуститься всему остальному, если база не стартанула, то приложение завершится
-	//dsn, err := config.GetDSN()
-	//if err != nil {
-	//	return fmt.Errorf("unable to connect to database: %w", err)
-	//}
-	//db, err := postgres.NewClient(app.ctx, dsn)
-	//if err != nil {
-	//	return fmt.Errorf("failed to init pg client: %w", err)
-	//}
-	//app.db = db
-	//
-	//checkupdb := func() {
-	//	startTime := time.Now()
-	//	h := func() error {
-	//		if time.Since(startTime) > app.cfg.DB.RefreshTimeout {
-	//			return backoff.Permanent(ErrTimeoutExceeded)
-	//		}
-	//		err = db.DB().Ping(app.ctx)
-	//		if err == nil {
-	//			return backoff.Permanent(nil)
-	//		}
-	//		return ErrCantStart
-	//	}
-	//	if err = backoff.Retry(h, backoff.NewExponentialBackOff()); err != nil {
-	//		logger.Error(app.ctx, "error during db creation", logger.Err(err))
-	//		app.cancel()
-	//	}
-	//}
-	//go checkupdb()
+	dsn, err := config.GetDSN()
+	if err != nil {
+		return fmt.Errorf("unable to connect to database: %w", err)
+	}
+	db, err := postgres.NewClient(app.ctx, dsn)
+	if err != nil {
+		return fmt.Errorf("failed to init pg client: %w", err)
+	}
+	app.db = db
+
+	checkupdb := func() {
+		startTime := time.Now()
+		h := func() error {
+			if time.Since(startTime) > app.cfg.DB.RefreshTimeout {
+				return backoff.Permanent(ErrTimeoutExceeded)
+			}
+			err = db.DB().Ping(app.ctx)
+			if err == nil {
+				return backoff.Permanent(nil)
+			}
+			return ErrCantStart
+		}
+		if err = backoff.Retry(h, backoff.NewExponentialBackOff()); err != nil {
+			logger.Error(app.ctx, "error during db creation", logger.Err(err))
+			app.cancel()
+		}
+	}
+	go checkupdb()
+
 	return nil
 }

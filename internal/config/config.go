@@ -8,6 +8,7 @@ import (
 type Config struct {
 	App    App    `yaml:"app"`
 	Health Health `yaml:"health"`
+	Web    Web    `yaml:"web"`
 	Logger Logger `yaml:"logger"`
 	DB     DB     `yaml:"db"`
 }
@@ -23,6 +24,17 @@ type App struct {
 
 type DB struct {
 	RefreshTimeout time.Duration `yaml:"refresh_timeout"`
+}
+
+type Web struct {
+	Port int `yaml:"port"`
+
+	ReadTimeout       time.Duration `yaml:"read_timeout"`
+	ReadHeaderTimeout time.Duration `yaml:"read_header_timeout"`
+	WriteTimeout      time.Duration `yaml:"write_timeout"`
+	IdleTimeout       time.Duration `yaml:"idle_timeout"`
+
+	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
 }
 
 type Health struct {

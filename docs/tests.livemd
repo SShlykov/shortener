@@ -21,7 +21,7 @@ defmodule Client do
   @url_dev  ""
   @url_prod ""
 
-  def middlewares do
+  def middlewares(nil) do
     base_url =
       case @selected_url do
         "local" -> {Tesla.Middleware.BaseUrl, @url_local}
@@ -29,16 +29,26 @@ defmodule Client do
         "dev" -> {Tesla.Middleware.BaseUrl, @url_dev}
         "prod" -> {Tesla.Middleware.BaseUrl, @url_prod}
       end
-
+    
+    middlewares(base_url)
+  end
+  def middlewares({Tesla.Middleware.BaseUrl, _} = base_url) do
     headers =
       {Tesla.Middleware.Headers, []}
 
     [base_url, Tesla.Middleware.JSON, headers]
   end
+  def middlewares(base_url) when is_binary(base_url) do
+    headers =
+      {Tesla.Middleware.Headers, []}
+
+    [{Tesla.Middleware.BaseUrl, base_url}, Tesla.Middleware.JSON, headers]
+  end
+  
   def adapter, do: {Tesla.Adapter.Hackney, insecure: true, recv_timeout: 30_000}
 
   # оставляю место для авторизации
-  def client(nil), do: Tesla.client(middlewares(), adapter())
+  def client(addr), do: Tesla.client(middlewares(addr), adapter())
 
   defmodule Mediaplanner do
     defstruct ~w(client operations results)a
@@ -137,6 +147,15 @@ defmodule Client do
   defp write(body, _opts), do: body
 end
 ````
+
+```elixir
+operations = 
+  [
+    %{request: {:post, "/now", %{secret: "test"}}}
+  ]
+
+Client.draw("localhost:8080", operations, pretty: true)
+```
 
 ```elixir
 # ТЕСТ

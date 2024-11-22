@@ -1,0 +1,17 @@
+{
+  "version": "2",
+  "sql": [
+    {
+      "engine": "postgresql",
+      "schema": "../migrations",
+      "gen": {
+        "go": {
+          "package": "repo",
+          "out": "../internal/pkg/test_feat/repo",
+          "sql_package": "pgx/v5"
+        }
+      },
+      "queries": "../internal/pkg/test_feat/repo"
+    }
+  ]
+}

@@ -10,3 +10,12 @@ run:
 .PHONY: lint
 lint:
 	golangci-lint run
+
+.PHONY: migrate
+migrate:
+	docker-compose up -d --force-recreate --build --remove-orphans && \
+	go run cmd/migrator/main.go up
+
+.PHONY: .sqlc
+.sqlc:
+	sqlc generate -f ./sqlc/sqlc.json

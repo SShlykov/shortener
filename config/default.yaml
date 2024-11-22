@@ -14,6 +14,13 @@ health:
   write_timeout: 10s
   idle_timeout: 10s
   shutdown_timeout: 10s
+web:
+  port: 8080
+  read_timeout: 10s
+  read_header_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 10s
+  shutdown_timeout: 10s
 logger:
   level: debug
   mode: pretty # pretty, json

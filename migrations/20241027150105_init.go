@@ -12,7 +12,7 @@ func init() {
 }
 
 func upInit(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.Exec("SELECT 1 as test", nil)
+	_, err := tx.Exec("SELECT $1 as test", 1)
 	if err != nil {
 		return err
 	}
